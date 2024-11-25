@@ -1,10 +1,12 @@
 package com.tooflexdev.taskmanager.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@Table(name = "app_user")
 public class User {
 
     @Id
@@ -18,6 +20,7 @@ public class User {
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     private LocalDateTime createdAt;

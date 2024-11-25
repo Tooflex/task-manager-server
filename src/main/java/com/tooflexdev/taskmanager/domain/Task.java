@@ -3,6 +3,7 @@ package com.tooflexdev.taskmanager.domain;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 public class Task {
@@ -24,8 +25,15 @@ public class Task {
     private LocalDateTime updatedAt;
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false, referencedColumnName = "id")
     private User user;
+
+    @OneToMany(mappedBy = "parentTask", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Task> subTasks;
+
+    @ManyToOne
+    @JoinColumn(name = "parent_task_id")
+    private Task parentTask;
 
     @PrePersist
     protected void onCreate() {
