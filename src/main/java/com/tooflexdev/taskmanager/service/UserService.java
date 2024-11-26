@@ -1,76 +1,116 @@
 package com.tooflexdev.taskmanager.service;
 
+import com.tooflexdev.taskmanager.domain.Role;
 import com.tooflexdev.taskmanager.domain.User;
+import com.tooflexdev.taskmanager.dto.UserRequestDTO;
+import com.tooflexdev.taskmanager.dto.UserResponseDTO;
+import com.tooflexdev.taskmanager.dto.mapper.UserMapper;
+import com.tooflexdev.taskmanager.repository.RoleRepository;
 import com.tooflexdev.taskmanager.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Service
-public class UserService {
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
-    // Get all users
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return userRepository.findByUsername(username)
+                .map(user -> org.springframework.security.core.userdetails.User
+                        .builder()
+                        .username(user.getUsername())
+                        .password(user.getPassword())
+                        .authorities(user.getAuthorities())
+                        .build())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
     }
 
-    // Get user by ID
-    public Optional<User> getUserById(Long userId) {
-        return userRepository.findById(userId);
+    public Page<UserResponseDTO> getAllUsers(Pageable pageable) {
+        return userRepository.findAll(pageable)
+                .map(UserMapper::toDTO);
     }
 
-    // Get user by username
-    public Optional<User> getUserByUsername(String username) {
-        return userRepository.findByUsername(username);
+    public Optional<UserResponseDTO> getUserById(Long id) {
+        return userRepository.findById(id)
+                .map(UserMapper::toDTO);
     }
 
-    // Get user by email
-    public Optional<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public Optional<UserResponseDTO> getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(UserMapper::toDTO);
     }
 
-    // Check if a username is taken
-    public boolean isUsernameTaken(String username) {
-        return userRepository.existsByUsername(username);
+    public UserResponseDTO createUser(UserRequestDTO userRequestDTO) {
+        if (userRepository.existsByUsername(userRequestDTO.getUsername())) {
+            throw new IllegalArgumentException("Username is already taken");
+        }
+        if (userRepository.existsByEmail(userRequestDTO.getEmail())) {
+            throw new IllegalArgumentException("Email is already in use");
+        }
+
+        User user = UserMapper.toEntity(userRequestDTO);
+        user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
+        User savedUser = userRepository.save(user);
+        return UserMapper.toDTO(savedUser);
     }
 
-    // Check if an email is taken
-    public boolean isEmailTaken(String email) {
-        return userRepository.existsByEmail(email);
+    public UserResponseDTO createUserWithRole(UserRequestDTO userRequestDTO, String roleName) {
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleName));
+
+        User user = UserMapper.toEntity(userRequestDTO);
+        user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
+        user.getRoles().add(role);
+        User savedUser = userRepository.save(user);
+        return UserMapper.toDTO(savedUser);
     }
 
-    // Create a new user
-    public User createUser(User user) {
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
-        return userRepository.save(user);
+    public UserResponseDTO addRoleToUser(Long userId, String roleName) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleName));
+
+        user.getRoles().add(role);
+        User savedUser = userRepository.save(user);
+        return UserMapper.toDTO(savedUser);
     }
 
-    // Update an existing user
-    public Optional<User> updateUser(Long userId, User updatedUser) {
-        return userRepository.findById(userId).map(user -> {
-            user.setUsername(updatedUser.getUsername());
-            user.setEmail(updatedUser.getEmail());
-            user.setPassword(updatedUser.getPassword());
-            user.setUpdatedAt(LocalDateTime.now());
-            return userRepository.save(user);
-        });
+    public Optional<UserResponseDTO> updateUser(Long id, UserRequestDTO userRequestDTO) {
+        return userRepository.findById(id)
+                .map(existingUser -> {
+                    existingUser.setUsername(userRequestDTO.getUsername());
+                    existingUser.setEmail(userRequestDTO.getEmail());
+                    if (userRequestDTO.getPassword() != null && !userRequestDTO.getPassword().isEmpty()) {
+                        existingUser.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
+                    }
+                    User savedUser = userRepository.save(existingUser);
+                    return UserMapper.toDTO(savedUser);
+                });
     }
 
-    // Delete a user by ID
-    public boolean deleteUser(Long userId) {
-        if (userRepository.existsById(userId)) {
-            userRepository.deleteById(userId);
+    public boolean deleteUser(Long id) {
+        if (userRepository.existsById(id)) {
+            userRepository.deleteById(id);
             return true;
         }
         return false;

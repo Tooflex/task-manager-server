@@ -40,9 +40,19 @@ public class TaskService {
         return taskRepository.findByUserId(userId);
     }
 
+    // Get tasks by priority
+    public List<Task> getTasksByPriority(Integer priority) {
+        return taskRepository.findByPriority(priority);
+    }
+
     // Get tasks with overdue deadlines
     public List<Task> getOverdueTasks() {
         return taskRepository.findByDueDateBefore(LocalDateTime.now());
+    }
+
+    // Get tasks created after a specific time
+    public List<Task> getTasksCreatedAfter(LocalDateTime createdAt) {
+        return taskRepository.findByCreatedAtAfter(createdAt);
     }
 
     // Create a new task

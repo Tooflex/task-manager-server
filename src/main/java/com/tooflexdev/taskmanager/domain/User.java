@@ -2,97 +2,106 @@ package com.tooflexdev.taskmanager.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "app_user")
-public class User {
+public class User implements UserDetails {
 
+    @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Setter
     @Column(unique = true, nullable = false)
     private String username;
 
+    @Setter
+    @Getter
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Setter
     @Column(nullable = false)
     @JsonIgnore
     private String password;
 
+    @Getter
+    @CreationTimestamp
+    @Column(updatable = false)
+    @JsonIgnore
     private LocalDateTime createdAt;
+
+    @Getter
+    @UpdateTimestamp
+    @JsonIgnore
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Task> tasks;
+    @Setter
+    @Getter
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    @JsonIgnore
+    private Set<Role> roles = new HashSet<>();
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = this.createdAt;
+    // Methods from UserDetails
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return roles.stream()
+                .map(role -> new SimpleGrantedAuthority(
+                    role.getName().startsWith("ROLE_") ? role.getName() : "ROLE_" + role.getName()
+                ))
+                .collect(Collectors.toList());
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
+    @Override
     public String getPassword() {
-        return password;
+        return this.password;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    @Override
+    public String getUsername() {
+        return this.username;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
+    @Override
+    @JsonIgnore
+    public boolean isAccountNonExpired() {
+        return true;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
+    @Override
+    @JsonIgnore
+    public boolean isAccountNonLocked() {
+        return true;
     }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
+    @Override
+    @JsonIgnore
+    public boolean isCredentialsNonExpired() {
+        return true;
     }
 
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public List<Task> getTasks() {
-        return tasks;
-    }
-
-    public void setTasks(List<Task> tasks) {
-        this.tasks = tasks;
+    @Override
+    @JsonIgnore
+    public boolean isEnabled() {
+        return true;
     }
 }
