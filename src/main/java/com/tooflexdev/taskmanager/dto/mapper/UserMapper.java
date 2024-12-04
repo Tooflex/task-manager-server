@@ -25,14 +25,16 @@ public class UserMapper {
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
         user.setPassword(dto.getPassword());
-        user.setRoles(dto.getRoles().stream()
-                .map(roleName -> {
-                    Role role = new Role();
-                    role.setName(roleName);
-                    return role;
-                })
-                .collect(Collectors.toSet())
-        );
+        if (dto.getRoles() != null) {
+            user.setRoles(dto.getRoles().stream()
+                    .map(roleName -> {
+                        Role role = new Role();
+                        role.setName(roleName);
+                        return role;
+                    })
+                    .collect(Collectors.toSet())
+            );
+        }
         return user;
     }
 }

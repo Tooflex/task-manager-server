@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class TaskService {
@@ -47,12 +48,17 @@ public class TaskService {
 
     // Get tasks with overdue deadlines
     public List<Task> getOverdueTasks() {
-        return taskRepository.findByDueDateBefore(LocalDateTime.now());
+        List<Task> tasks = taskRepository.findAll();
+        return tasks.stream()
+                .filter(task -> task.getDueDate().isBefore(LocalDateTime.now()))
+                .collect(Collectors.toList());
     }
 
     // Get tasks created after a specific time
     public List<Task> getTasksCreatedAfter(LocalDateTime createdAt) {
-        return taskRepository.findByCreatedAtAfter(createdAt);
+        return taskRepository.findAll().stream()
+                .filter(task -> task.getCreatedAt().isAfter(createdAt))
+                .collect(Collectors.toList());
     }
 
     // Create a new task

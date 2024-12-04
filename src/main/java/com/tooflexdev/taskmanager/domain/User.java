@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 public class User implements UserDetails {
 
     @Getter
+    @Setter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
